@@ -1,4 +1,3 @@
-#hell yea
 # Imports
 import pygame
 import random
@@ -7,9 +6,11 @@ import json
 # Window settings
 GRID_SIZE = 64
 WIDTH = 25 * GRID_SIZE
-HEIGHT = 16 * GRID_SIZE
+HEIGHT = 15 * GRID_SIZE
 TITLE = "Zeladon"
 FPS = 60
+
+
 
 
 # Create window
@@ -39,6 +40,9 @@ font_sm = pygame.font.Font('assets/fonts/Dinomouse-Regular.otf', 24)
 font_xs = pygame.font.Font(None, 14)
 
 # Load images
+
+hero_idle_rt =[pygame.image.load('assets/Items/Players/Variable sizes/Blue/alienBlue_walk1.png').convert_alpha()]
+
 hero_imgs_rt = [pygame.image.load('assets/Items/Players/Variable sizes/Blue/alienBlue_walk1.png').convert_alpha(),
                 pygame.image.load('assets/Items/Players/Variable sizes/Blue/alienBlue_walk2.png').convert_alpha()]
 
@@ -47,7 +51,7 @@ hero_jump_rt = [pygame.image.load('assets/Items/Players/Variable sizes/Blue/alie
 hero_climb_rt = [pygame.image.load('assets/Items/Players/Variable sizes/Blue/alienBlue_climb1.png').convert_alpha(),
                  pygame.image.load('assets/Items/Players/Variable sizes/Blue/alienBlue_climb2.png').convert_alpha()]
 
-
+hero_idle_lt = [pygame.transform.flip(img, True, False)for img in hero_idle_rt]
 hero_imgs_lt = [pygame.transform.flip(img, True, False)for img in hero_imgs_rt]
 hero_jump_lt = [pygame.transform.flip(img, True, False)for img in hero_jump_rt]
 hero_climb_lt = [pygame.transform.flip(img, True, False)for img in hero_climb_rt]
@@ -58,9 +62,14 @@ grassBlock_img = pygame.image.load('assets/images/tiles/grass_dirt.png').convert
 gems_img = pygame.image.load('assets/images/items/gem.png').convert_alpha()
 heart_img = pygame.image.load('assets/images/items/heart.png').convert_alpha()
 chain_img = pygame.image.load('assets/Items/Tiles/signExit.png').convert_alpha()
+key_img = pygame.image.load('assets/images/items/key.png').convert_alpha()
 
-bee_imgs = [pygame.image.load('assets/Items/Enemies/bee.png').convert_alpha(),
+gems_img = pygame.image.load('assets/images/items/gem.png').convert_alpha()
+
+bee_imgs_rt = [pygame.image.load('assets/Items/Enemies/bee.png').convert_alpha(),
             pygame.image.load('assets/Items/Enemies/bee_move.png').convert_alpha()]
+
+bee_imgs_lt = [pygame.transform.flip(img, True, False)for img in bee_imgs_rt ]
 
 barnacle_imgs = [pygame.image.load('assets/Items/Enemies/barnacle.png').convert_alpha(),
                  pygame.image.load('assets/Items/Enemies/barnacle_attack.png').convert_alpha()]
@@ -75,10 +84,17 @@ saw_imgs = [pygame.image.load('assets/Items/Enemies/saw.png').convert_alpha(),
 greenworm_imgs = [pygame.image.load('assets/Items/Enemies/wormGreen.png').convert_alpha(),
                   pygame.image.load('assets/Items/Enemies/wormGreen_move.png').convert_alpha()] 
 
-
+locked_door_img = pygame.image.load('assets/images/tiles/locked_door.png').convert_alpha()
+ 
 
 # Load sounds
+jump_snd = pygame.mixer.Sound('assets/sounds/jump.wav')
+gem_snd = pygame.mixer.Sound('assets/sounds/collect_point.wav')
 
+#music
+theme = 'assets/sounds/02 -  Menu.mp3'
+
+ 
 
 #load levels
 
@@ -117,7 +133,7 @@ class AminatedEntity(Entity):
      def set_img_list(self):
          self.images = self.images 
      def animate(self):
-         self.set_img_list()
+         self.set_image_list()
          self.ticks += 1
 
          if self.ticks % self.animation_speed == 0:
@@ -137,23 +153,27 @@ class Hero(AminatedEntity):
 
         self.speed = 5
         self.jump_power = 22
-
+       
         self.vx = 0 
         self.vy = 0
         self.hurt_timer = 0 
-
-        self.hearts = 400
+        self.facing_right = True
+        self.jumping = False  
+        
+        self.hearts = 4
         self.gems = 0
         self.score = 0
-       
+        self.key = 0 
+        
     def move_right(self):
     	self.vx = self.speed
-    
+    	self.facing_right = True
     def move_to(self,x, y):
         self.rect.centerx = x * GRID_SIZE + GRID_SIZE//2
         self.rect.centery = y * GRID_SIZE + GRID_SIZE//2
     def move_left(self):
     	self.vx = -1 * self.speed
+    	self.facing_right = False 
 
     def stop(self):
         self.vx = 0 
@@ -164,6 +184,10 @@ class Hero(AminatedEntity):
 
         if len(hits) > 0:
             self.vy = -1 * self.jump_power
+            self.jumping = True
+            jump_snd.play()
+
+            
 
     
 
@@ -183,8 +207,11 @@ class Hero(AminatedEntity):
         for block in hits:
             if self.vy > 0:
                 self.rect.bottom = block.rect.top
+                self.jumping = False 
             elif self.vy < 0:
                 self.rect.top = block.rect.bottom
+                
+   
 
 
     def check_items(self):
@@ -200,7 +227,7 @@ class Hero(AminatedEntity):
                 self.hearts -= 1
                 self.hurt_timer = 1.0 * FPS
                 print(self.hearts)
-                print("Oof!!")# play a sound
+                print("Oof!!")
 
             if self.rect.x < enemy.rect.x:
                 self.vx = -15
@@ -222,7 +249,7 @@ class Hero(AminatedEntity):
 
                 
              
-
+     
 
     def check_world_edges(self):
         if self.rect.left < 0:
@@ -235,7 +262,24 @@ class Hero(AminatedEntity):
         
     def reached_goal(self):
         return pygame.sprite.spritecollideany(self, goal)
-
+    
+    def set_image_list(self):
+        if self.facing_right:
+            if self.jumping:
+                self.images = hero_jump_rt 
+            elif self.vx == 0:
+                self.images = hero_idle_rt
+            else:
+                self.images = hero_imgs_rt
+        else:
+            if self.jumping:
+                self.images = hero_jump_lt
+            if self.vx == 0:
+                self.images = hero_idle_lt
+            else:
+                self.images = hero_imgs_lt
+            
+        
     
     def update(self):
         self.apply_gravity()
@@ -244,6 +288,7 @@ class Hero(AminatedEntity):
         self.check_items()
         self.check_enemy()
         self.animate()
+        
     	
     	 
 class Platform(Entity):
@@ -261,7 +306,7 @@ class Chain(Entity):
     def __init__(self, x, y, image):
         super().__init__(x, y, image)
         
-class Item(Entity):
+class Gem(Entity):
     
     def __init__(self, x, y, image):
         super().__init__(x, y, image)
@@ -270,7 +315,30 @@ class Item(Entity):
         character.gems +=1
         character.score +=10
         print(character.score)
+        gem_snd.play()
 
+
+class GreenGem(Entity):
+    
+    def __init__(self, x, y, image):
+        super().__init__(x, y, image)
+        
+    def apply(self, character):
+        hero.key += 1
+        character.score +=10
+        blocks.remove(lockeds)
+
+
+        
+class Hearts(Entity):
+    
+    def __init__(self, x, y, image):
+        super().__init__(x, y, image)
+        
+    def apply(self, character):
+        character.hearts +=1
+        character.score += 25
+        
 class Enemy(AminatedEntity):
     def __init__(self, x, y, images):
         super().__init__(x, y, images)
@@ -332,7 +400,12 @@ class Saw(Enemy):
     
     def __init__(self, x, y, images):
         super().__init__(x, y, images)
+    def set_image_list(self):
+        if self.vx > 0:
+            self.images = saw_imgs
 
+        else:
+            self.images = saw_imgs
     def update(self):
         self.move_and_check_blocks()
         self.apply_gravity()
@@ -347,10 +420,10 @@ class Mouse(Enemy):
         
     def set_image_list(self):
         if self.vx > 0:
-            self.images = Mouse_imgs_rt
+            self.images = mouse_imgs_lt
 
         else:
-            self.images = spick_man_imgs_lt
+            self.images = mouse_imgs_rt
     def update(self):
         self.move_and_check_blocks()
         self.apply_gravity()
@@ -361,7 +434,13 @@ class Bee(Enemy):
     
     def __init__(self, x, y, images):
         super().__init__(x, y, images)
+        
+    def set_image_list(self):
+        if self.vx > 0:
+            self.images = bee_imgs_lt
 
+        else:
+            self.images = bee_imgs_rt
     def update(self):
         self.move_and_check_blocks()
         self.check_world_edges()        
@@ -448,11 +527,11 @@ def draw_grid(offset_x=0, offset_y=0):
 def start_game():
     global hero, stage, current_level
     
-    hero = Hero(0, 0, hero_imgs_rt)
+    hero = Hero(0, 0, hero_idle_rt)
     stage = Start
-    current_level = 2
+    current_level = 0
 def setup():
-    global player, emenys, items, blocks, goal, gravity, terminal_velocity, world_width,  world_height, all_sprites
+    global player, emenys, items, blocks, goal, gravity, terminal_velocity, world_width,  world_height, all_sprites, lockeds
     
     blocks = pygame.sprite.Group()
     items  = pygame.sprite.Group()
@@ -460,6 +539,7 @@ def setup():
     player = pygame.sprite.Group()
     goal   = pygame.sprite.Group()
     all_sprites = pygame.sprite.Group()
+    lockeds = pygame.sprite.Group()
 
     with open(Levels[current_level]) as f:
         data = json.load(f)
@@ -481,7 +561,12 @@ def setup():
     for loc in data ["item_locs"]:
         x = loc[0]
         y = loc[1]
-        b = Item(x,y,gems_img)
+        b = Gem(x,y,gems_img)
+        items.add(b)
+    for loc in data ["hearts_locs"]:
+        x = loc[0]
+        y = loc[1]
+        b = Hearts(x,y,heart_img)
         items.add(b)
 
     for loc in data ["saw_locs"]:
@@ -498,7 +583,7 @@ def setup():
     for loc in data ["bee_locs"]:
         x = loc[0]
         y = loc[1]
-        e = Bee(x,y,bee_imgs)
+        e = Bee(x,y,bee_imgs_rt)
         emenys.add(e)
 
     
@@ -507,6 +592,20 @@ def setup():
         y = loc[1]
         b = Blocks(x,y,Block_img)
         blocks.add(b)
+
+    
+    for loc in data["locked_locs"]:
+        x = loc[0]
+        y = loc[1]
+        b = GreenGem(x , y, locked_door_img)
+        lockeds.add(b)
+        
+    for loc in data ["key_locs"]:
+        x = loc[0]
+        y = loc[1]
+        b = GreenGem(x,y,key_img)
+        items.add(b)
+
         
     world_width = data['width'] * GRID_SIZE
     world_height = data['height'] * GRID_SIZE
@@ -516,10 +615,18 @@ def setup():
 
     gravity = data["gravity"]
     terminal_velocity = data["terminal_velocity"]
-
-
+ 
+    
+    blocks.add(lockeds)
+    
+        
+        
     all_sprites.add(player,emenys, items, blocks, goal)
+    
+    pygame.mixer.music.load(theme)
+    pygame.mixer.music.play(-1)
 
+    
 # Input handling
 grid_on = False
 running = True
@@ -592,6 +699,8 @@ while running:
         offset_y = hero.rect.centery - HEIGHT //2
     # Drawing code
     screen.fill(SKY_BLUE)
+   
+    
     
 
     for sprite in all_sprites:
@@ -607,8 +716,10 @@ while running:
 
     elif stage == Lose:
         show_lose_screen()
+        pygame.mixer.music.stop
     elif stage == Level_complete:
         show_win_screen()
+        pygame.mixer.music.stop
     elif stage == win:
         show_wins_screen()
     # Update screen
