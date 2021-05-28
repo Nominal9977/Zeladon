@@ -1,5 +1,3 @@
-# Zeladon
-
 # goal 
 The goal of the game Zeladon is to get to then last level of the game with as many hearts as possible. unlock the final door and get home to your family. 
 
